@@ -3,6 +3,10 @@ const speekyWrap = speekyImage.parentElement;
 
 const pressAudio = new Audio('./assets/audio/reverse_press.mp3');
 const releaseAudio = new Audio('./assets/audio/release.mp3');
+pressAudio.preload = 'auto';
+releaseAudio.preload = 'auto';
+
+let audioUnlocked = false;
 
 let isPressed = false;
 let isShaking = false;
@@ -22,6 +26,64 @@ const SCALE_SMOOTHING = 0.22;
 function stopAudio(audio) {
   audio.pause();
   audio.currentTime = 0;
+}
+
+async function unlockAudioIfNeeded() {
+  if (audioUnlocked) return;
+
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) {
+      const ctx = new AudioContextClass();
+      if (ctx.state !== 'running') {
+        await ctx.resume();
+      }
+      await ctx.close();
+    }
+
+    const previousMutedPress = pressAudio.muted;
+    const previousMutedRelease = releaseAudio.muted;
+
+    pressAudio.muted = true;
+    releaseAudio.muted = true;
+
+    try {
+      await pressAudio.play();
+      pressAudio.pause();
+      pressAudio.currentTime = 0;
+    } catch (_) {
+    }
+
+    try {
+      await releaseAudio.play();
+      releaseAudio.pause();
+      releaseAudio.currentTime = 0;
+    } catch (_) {
+    }
+
+    pressAudio.muted = previousMutedPress;
+    releaseAudio.muted = previousMutedRelease;
+    audioUnlocked = true;
+  } catch (error) {
+    console.warn('[audio] unlock failed', error);
+  }
+}
+
+async function playAudioSafe(audio) {
+  try {
+    await unlockAudioIfNeeded();
+    audio.currentTime = 0;
+    await audio.play();
+  } catch (error) {
+    console.warn('[audio] play failed, retrying once', error);
+    try {
+      await unlockAudioIfNeeded();
+      audio.currentTime = 0;
+      await audio.play();
+    } catch (retryError) {
+      console.error('[audio] play retry failed', retryError);
+    }
+  }
 }
 
 function applyTransform(shakeWave = 0) {
@@ -100,7 +162,7 @@ function onPressDown(event) {
 
   startRenderLoop();
   stopAudio(pressAudio);
-  pressAudio.play().catch(() => {});
+  playAudioSafe(pressAudio);
 }
 
 function onPressUp(event) {
@@ -115,7 +177,7 @@ function onPressUp(event) {
 
   stopAudio(pressAudio);
   stopAudio(releaseAudio);
-  releaseAudio.play().catch(() => {});
+  playAudioSafe(releaseAudio);
   scheduleShakeAfterRelease();
 }
 
