@@ -25,18 +25,28 @@ const SHAKE_CYCLE_MS = 140;
 const PRESSED_SCALE_Y = 0.9;
 const SCALE_SMOOTHING = 0.22;
 
+function getBasePath() {
+  const segments = window.location.pathname.split('/').filter(Boolean);
+  if (window.location.hostname.endsWith('github.io') && segments.length > 0) {
+    return `/${segments[0]}/`;
+  }
+  return '/';
+}
+
+const BASE_PATH = getBasePath();
+
 const PRESS_AUDIO_CANDIDATES = [
+  `${BASE_PATH}assets/audio/reverse_press.mp3`,
+  `${BASE_PATH}assets/audio/리버스으아앙.mp3`,
   './assets/audio/reverse_press.mp3',
   './assets/audio/리버스으아앙.mp3',
-  '../assets/audio/reverse_press.mp3',
-  '../assets/audio/리버스으아앙.mp3',
 ];
 
 const RELEASE_AUDIO_CANDIDATES = [
+  `${BASE_PATH}assets/audio/release.mp3`,
+  `${BASE_PATH}assets/audio/스피키네르지마세요.mp3`,
   './assets/audio/release.mp3',
   './assets/audio/스피키네르지마세요.mp3',
-  '../assets/audio/release.mp3',
-  '../assets/audio/스피키네르지마세요.mp3',
 ];
 
 async function resolveAudioSource(candidates) {
