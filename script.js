@@ -1,8 +1,8 @@
 const speekyImage = document.getElementById('speeky');
 const speekyWrap = speekyImage.parentElement;
 
-const pressAudio = new Audio('../assets/audio/리버스으아앙.mp3');
-const releaseAudio = new Audio('../assets/audio/스피키네르지마세요.mp3');
+const pressAudio = new Audio('./assets/audio/리버스으아앙.mp3');
+const releaseAudio = new Audio('./assets/audio/스피키네르지마세요.mp3');
 
 let isPressed = false;
 let isShaking = false;
