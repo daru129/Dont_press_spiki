@@ -1,12 +1,14 @@
 const speekyImage = document.getElementById('speeky');
 const speekyWrap = speekyImage.parentElement;
 
-const pressAudio = new Audio('./assets/audio/reverse_press.mp3');
-const releaseAudio = new Audio('./assets/audio/release.mp3');
+const pressAudio = new Audio();
+const releaseAudio = new Audio();
 pressAudio.preload = 'auto';
 releaseAudio.preload = 'auto';
 
 let audioUnlocked = false;
+let audioReady = false;
+let audioSetupPromise = null;
 
 let isPressed = false;
 let isShaking = false;
@@ -23,6 +25,61 @@ const SHAKE_CYCLE_MS = 140;
 const PRESSED_SCALE_Y = 0.9;
 const SCALE_SMOOTHING = 0.22;
 
+const PRESS_AUDIO_CANDIDATES = [
+  './assets/audio/reverse_press.mp3',
+  './assets/audio/리버스으아앙.mp3',
+  '../assets/audio/reverse_press.mp3',
+  '../assets/audio/리버스으아앙.mp3',
+];
+
+const RELEASE_AUDIO_CANDIDATES = [
+  './assets/audio/release.mp3',
+  './assets/audio/스피키네르지마세요.mp3',
+  '../assets/audio/release.mp3',
+  '../assets/audio/스피키네르지마세요.mp3',
+];
+
+async function resolveAudioSource(candidates) {
+  for (const src of candidates) {
+    try {
+      const response = await fetch(src, {
+        method: 'HEAD',
+        cache: 'no-store',
+      });
+      if (response.ok) {
+        return src;
+      }
+    } catch (_) {
+    }
+  }
+  return candidates[0];
+}
+
+async function ensureAudioSources() {
+  if (audioReady) return;
+  if (audioSetupPromise) {
+    await audioSetupPromise;
+    return;
+  }
+
+  audioSetupPromise = (async () => {
+    const [pressSrc, releaseSrc] = await Promise.all([
+      resolveAudioSource(PRESS_AUDIO_CANDIDATES),
+      resolveAudioSource(RELEASE_AUDIO_CANDIDATES),
+    ]);
+
+    pressAudio.src = pressSrc;
+    releaseAudio.src = releaseSrc;
+    audioReady = true;
+  })();
+
+  try {
+    await audioSetupPromise;
+  } finally {
+    audioSetupPromise = null;
+  }
+}
+
 function stopAudio(audio) {
   audio.pause();
   audio.currentTime = 0;
@@ -32,6 +89,8 @@ async function unlockAudioIfNeeded() {
   if (audioUnlocked) return;
 
   try {
+    await ensureAudioSources();
+
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (AudioContextClass) {
       const ctx = new AudioContextClass();
@@ -71,12 +130,14 @@ async function unlockAudioIfNeeded() {
 
 async function playAudioSafe(audio) {
   try {
+    await ensureAudioSources();
     await unlockAudioIfNeeded();
     audio.currentTime = 0;
     await audio.play();
   } catch (error) {
     console.warn('[audio] play failed, retrying once', error);
     try {
+      await ensureAudioSources();
       await unlockAudioIfNeeded();
       audio.currentTime = 0;
       await audio.play();
@@ -192,3 +253,4 @@ window.addEventListener('blur', onPressUp);
 speekyImage.addEventListener('pointerdown', onPressDown, { passive: false });
 
 applyTransform(0);
+ensureAudioSources();
